@@ -1,5 +1,3 @@
-import { deleteToken, getMessaging, getToken, isSupported } from "firebase/messaging";
-import { initializeApp, getApps } from "firebase/app";
 import { removePushSubscription, savePushSubscription } from "@/lib/push.functions";
 import type { SelectedLocation } from "@/lib/locations";
 
@@ -25,6 +23,10 @@ function installationId(): string {
 export type PushStatus = "registered" | "not-configured" | "unsupported" | "open-in-new-tab" | "denied";
 
 export async function enablePush(location: SelectedLocation): Promise<PushStatus> {
+  const [{ initializeApp, getApps }, { getMessaging, getToken, isSupported }] = await Promise.all([
+    import("firebase/app"),
+    import("firebase/messaging"),
+  ]);
   if (!config.apiKey || !config.projectId || !appId || !vapidKey || !config.messagingSenderId) return "not-configured";
   if (!("Notification" in window) || !(await isSupported())) return "unsupported";
   if (window.top !== window.self) return "open-in-new-tab";
@@ -49,6 +51,10 @@ export async function enablePush(location: SelectedLocation): Promise<PushStatus
 }
 
 export async function disablePush(): Promise<void> {
+  const [{ getApps }, { deleteToken, getMessaging, isSupported }] = await Promise.all([
+    import("firebase/app"),
+    import("firebase/messaging"),
+  ]);
   const id = localStorage.getItem(INSTALLATION_KEY);
   if (id) await removePushSubscription({ data: { installationId: id } });
   if (await isSupported()) {
