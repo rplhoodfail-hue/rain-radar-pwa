@@ -283,7 +283,7 @@ function LocationPicker({
           value=""
           onChange={(e) => {
             const kel = kelurahanQ.data?.find((r) => r.id === e.target.value);
-            if (kel) onChange({ label: `${kel.nama}, ${locationLabelSuffix(kelurahanQ.data, kel.id)}`, adm4: toAdm4(kel.id) });
+            if (kel) onChange({ label: kel.nama, adm4: toAdm4(kel.id) });
           }}
         >
           <option value="">Kelurahan/Desa…</option>
