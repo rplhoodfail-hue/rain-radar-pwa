@@ -50,11 +50,13 @@ export async function fetchBmkgForecast(adm4: string): Promise<BmkgForecast> {
 /** Ambil titik prakiraan yang paling dekat dengan waktu sekarang. */
 export function pickCurrent(items: BmkgForecastItem[]): BmkgForecastItem {
   const now = Date.now();
-  return items.reduce((best, it) => {
+  const first = items[0];
+  if (!first) throw new Error("Daftar prakiraan kosong");
+  return items.reduce<BmkgForecastItem>((best, it) => {
     const t = new Date(it.datetime).getTime();
     const bt = new Date(best.datetime).getTime();
     return Math.abs(t - now) < Math.abs(bt - now) ? it : best;
-  }, items[0]);
+  }, first);
 }
 
 export interface FireIndex {

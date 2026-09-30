@@ -371,7 +371,7 @@ function StatCard({
   value: string;
   subtitle: string;
   toneClass?: string;
-  windDeg?: number;
+  windDeg?: number | undefined;
 }) {
   return (
     <div className={`glass-card rounded-2xl p-4 ${toneClass ?? ""}`}>
