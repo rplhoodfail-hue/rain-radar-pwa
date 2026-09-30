@@ -36,7 +36,7 @@ export interface SelectedLocation {
 /** Lokasi khusus: SMK PGRI 2 Ponorogo (Kel. Kauman, Kec. Ponorogo). */
 export const SMK_PGRI2: SelectedLocation = {
   label: "SMK PGRI 2 Ponorogo",
-  adm4: "35.02.15.1004", // Kelurahan Kauman, Kecamatan Ponorogo, Kab. Ponorogo
+  adm4: "35.02.17.1010", // Kelurahan Kauman, Kecamatan Ponorogo, Kab. Ponorogo
 };
 
 export const DEFAULT_LOCATION: SelectedLocation = SMK_PGRI2;
