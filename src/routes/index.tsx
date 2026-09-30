@@ -296,9 +296,6 @@ function LocationPicker({
   );
 }
 
-function locationLabelSuffix(_list: unknown, _id: string) {
-  return "";
-}
 
 function CurrentHero({
   item,
