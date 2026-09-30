@@ -10,33 +10,43 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicWeatherAlertsRouteImport } from './routes/api/public/weather-alerts'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicWeatherAlertsRoute = ApiPublicWeatherAlertsRouteImport.update({
+  id: '/api/public/weather-alerts',
+  path: '/api/public/weather-alerts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/public/weather-alerts': typeof ApiPublicWeatherAlertsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/public/weather-alerts': typeof ApiPublicWeatherAlertsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/public/weather-alerts': typeof ApiPublicWeatherAlertsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/api/public/weather-alerts'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/api/public/weather-alerts'
+  id: '__root__' | '/' | '/api/public/weather-alerts'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiPublicWeatherAlertsRoute: typeof ApiPublicWeatherAlertsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +58,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/weather-alerts': {
+      id: '/api/public/weather-alerts'
+      path: '/api/public/weather-alerts'
+      fullPath: '/api/public/weather-alerts'
+      preLoaderRoute: typeof ApiPublicWeatherAlertsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiPublicWeatherAlertsRoute: ApiPublicWeatherAlertsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

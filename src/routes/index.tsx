@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CloudRain,
   Droplets,
@@ -8,6 +8,11 @@ import {
   GraduationCap,
   Loader2,
   MapPin,
+  Bell,
+  BellOff,
+  ExternalLink,
+  ShieldAlert,
+  Sparkles,
   Navigation,
   Thermometer,
   Wind,
@@ -31,6 +36,9 @@ import {
   toAdm4,
   type SelectedLocation,
 } from "@/lib/locations";
+import { getBmkgNews } from "@/lib/news.functions";
+import { disablePush, enablePush, type PushStatus } from "@/lib/push-client";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -56,6 +64,8 @@ export const Route = createFileRoute("/")({
 
 function WeatherPage() {
   const [location, setLocation] = useState<SelectedLocation>(DEFAULT_LOCATION);
+  const [pushStatus, setPushStatus] = useState<PushStatus | "idle" | "loading">("idle");
+  const [isNight, setIsNight] = useState(false);
 
   const forecastQuery = useQuery({
     queryKey: ["bmkg-forecast", location.adm4],
@@ -68,10 +78,34 @@ function WeatherPage() {
   const current = forecast ? pickCurrent(forecast.items) : undefined;
   const rain24 = forecast ? rainNext24h(forecast.items) : 0;
   const fire = current ? computeFireIndex(current, rain24) : undefined;
+  const newsQuery = useQuery({ queryKey: ["bmkg-news"], queryFn: () => getBmkgNews(), staleTime: 5 * 60 * 1000 });
+  const scene = current ? weatherScene(current) : "clear";
+
+  useEffect(() => {
+    const hour = new Date().getHours();
+    setIsNight(hour < 6 || hour >= 18);
+    if (typeof Notification !== "undefined" && Notification.permission === "granted") setPushStatus("registered");
+  }, []);
+
+  async function handlePush() {
+    setPushStatus("loading");
+    try {
+      setPushStatus(await enablePush(location));
+    } catch {
+      setPushStatus("not-configured");
+    }
+  }
+
+  async function handleDisablePush() {
+    setPushStatus("loading");
+    await disablePush();
+    setPushStatus("idle");
+  }
 
   return (
-    <div className="hero-sky min-h-screen">
-      <div className="mx-auto w-full max-w-5xl px-4 pb-16 pt-8 sm:px-6">
+    <div className={`weather-stage weather-${scene} ${isNight ? "time-night" : "time-day"} min-h-screen`}>
+      <WeatherAtmosphere scene={scene} isNight={isNight} />
+      <div className="relative z-10 mx-auto w-full max-w-6xl px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
         <Header />
 
         <LocationPicker location={location} onChange={setLocation} />
@@ -92,12 +126,12 @@ function WeatherPage() {
                 : "Terjadi kesalahan jaringan."}{" "}
               Coba pilih lokasi lain atau muat ulang.
             </p>
-            <button
+            <Button
               onClick={() => forecastQuery.refetch()}
-              className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+              className="mt-4"
             >
               Coba lagi
-            </button>
+            </Button>
           </div>
         )}
 
@@ -110,6 +144,8 @@ function WeatherPage() {
               kecamatan={forecast.lokasi.kecamatan}
               kotkab={forecast.lokasi.kotkab}
             />
+
+            <WeatherAlert item={current} items={forecast.items} />
 
             <section className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               <StatCard
@@ -148,6 +184,15 @@ function WeatherPage() {
 
             <ForecastStrip items={forecast.items} />
 
+            <NotificationPanel
+              status={pushStatus}
+              onEnable={handlePush}
+              onDisable={handleDisablePush}
+              locationLabel={location.label}
+            />
+
+            <BmkgNews data={newsQuery.data ?? []} loading={newsQuery.isLoading} />
+
             <p className="mt-8 text-center text-xs text-muted-foreground">
               Sumber data: API resmi BMKG (api.bmkg.go.id) · Indeks kebakaran adalah
               estimasi FFDI dari parameter cuaca · Waktu dalam WIB
@@ -156,6 +201,104 @@ function WeatherPage() {
         )}
       </div>
     </div>
+  );
+}
+
+type WeatherScene = "rain" | "windy" | "hot" | "cloudy" | "clear";
+
+function weatherScene(item: BmkgForecastItem): WeatherScene {
+  if (/hujan|petir/i.test(item.weather_desc) || (item.tp ?? 0) > 0.2) return "rain";
+  if (item.ws >= 18) return "windy";
+  if (item.t >= 32) return "hot";
+  if (/berawan|kabut/i.test(item.weather_desc) || (item.tcc ?? 0) >= 60) return "cloudy";
+  return "clear";
+}
+
+function WeatherAtmosphere({ scene, isNight }: { scene: WeatherScene; isNight: boolean }) {
+  return (
+    <div className="weather-atmosphere" aria-hidden="true">
+      <div className={isNight ? "moon" : "sun-disc"} />
+      {(scene === "rain" || scene === "cloudy") && (
+        <div className="cloud-bank"><i /><i /><i /></div>
+      )}
+      {scene === "rain" && (
+        <div className="rain-field">
+          {Array.from({ length: 28 }, (_, index) => <i key={index} style={{ "--drop": index } as React.CSSProperties} />)}
+        </div>
+      )}
+      {scene === "windy" && <div className="wind-field"><i /><i /><i /><i /></div>}
+      {isNight && <div className="star-field"><i /><i /><i /><i /><i /><i /></div>}
+    </div>
+  );
+}
+
+function WeatherAlert({ item, items }: { item: BmkgForecastItem; items: BmkgForecastItem[] }) {
+  const nextRain = items
+    .filter((forecast) => new Date(forecast.datetime).getTime() >= Date.now())
+    .find((forecast) => /hujan|petir/i.test(forecast.weather_desc) || (forecast.tp ?? 0) > 0.2);
+  const hours = nextRain ? Math.max(0, Math.round((+new Date(nextRain.datetime) - Date.now()) / 3_600_000)) : null;
+  const title = nextRain
+    ? hours !== null && hours >= 18 ? "Besok berpotensi hujan" : hours !== null && hours <= 1 ? "Hujan segera datang" : `${hours} jam menuju hujan`
+    : /cerah/i.test(item.weather_desc) ? "Langit sedang cerah" : "Cuaca cukup bersahabat";
+  const copy = nextRain
+    ? `${nextRain.weather_desc} diperkirakan pada ${formatWib(nextRain.datetime, { hour: "2-digit", minute: "2-digit" })} WIB. Siapkan payung ya-^`
+    : "Belum terlihat potensi hujan pada prakiraan terdekat. Waktu yang baik untuk beraktivitas.";
+  return (
+    <section className="weather-alert mt-4 flex items-start gap-3 rounded-lg border border-border px-4 py-3">
+      {nextRain ? <CloudRain className="mt-0.5 h-5 w-5 shrink-0 text-rain" /> : <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-sun" />}
+      <div><h2 className="text-sm font-bold">{title}</h2><p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{copy}</p></div>
+    </section>
+  );
+}
+
+function NotificationPanel({ status, onEnable, onDisable, locationLabel }: {
+  status: PushStatus | "idle" | "loading";
+  onEnable: () => void;
+  onDisable: () => void;
+  locationLabel: string;
+}) {
+  const messages: Partial<Record<typeof status, string>> = {
+    registered: `Peringatan hujan untuk ${locationLabel} sudah aktif.`,
+    "open-in-new-tab": "Buka aplikasi di tab baru atau versi terbit untuk mengizinkan notifikasi.",
+    denied: "Izin ditolak. Aktifkan notifikasi CuacaKu melalui pengaturan situs di browser.",
+    unsupported: "Browser ini belum mendukung notifikasi cuaca.",
+    "not-configured": "Konfigurasi web push belum lengkap. Perbarui koneksi Firebase dengan Include web push.",
+  };
+  return (
+    <section className="glass-card mt-8 grid gap-5 rounded-lg p-5 sm:grid-cols-[1fr_auto] sm:items-center sm:p-6">
+      <div className="flex gap-4">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-accent"><Bell className="h-5 w-5 text-primary" /></div>
+        <div><h2 className="font-bold">Peringatan cuaca di Android</h2><p className="mt-1 text-sm leading-relaxed text-muted-foreground">Terima kabar sebelum hujan dan ringkasan saat cuaca cerah, bahkan ketika CuacaKu ditutup.</p>{messages[status] && <p className="mt-2 text-xs font-semibold text-primary">{messages[status]}</p>}</div>
+      </div>
+      {status === "registered" ? (
+        <Button variant="outline" onClick={onDisable}><BellOff /> Matikan</Button>
+      ) : (
+        <Button onClick={onEnable} disabled={status === "loading"}>{status === "loading" ? <Loader2 className="animate-spin" /> : <Bell />} Aktifkan</Button>
+      )}
+    </section>
+  );
+}
+
+function BmkgNews({ data, loading }: { data: Awaited<ReturnType<typeof getBmkgNews>>; loading: boolean }) {
+  return (
+    <section className="mt-10">
+      <div className="mb-4 flex items-end justify-between gap-4">
+        <div><p className="text-xs font-semibold uppercase text-primary">Waspada terkini</p><h2 className="mt-1 text-2xl font-bold">Kabar resmi BMKG</h2></div>
+        <a className="story-link hidden text-xs font-semibold text-muted-foreground sm:inline-flex" href="https://www.bmkg.go.id/berita" target="_blank" rel="noreferrer">Lihat semua <ExternalLink className="ml-1 h-3.5 w-3.5" /></a>
+      </div>
+      {loading ? <div className="flex h-40 items-center justify-center"><Loader2 className="animate-spin text-primary" /></div> : (
+        <div className="news-grid">
+          {data.slice(0, 4).map((item, index) => (
+            <a key={item.link} href={item.link} target="_blank" rel="noreferrer" className={`news-item ${index === 0 ? "news-featured" : ""}`}>
+              <div className="flex items-center gap-2 text-xs font-semibold text-primary"><ShieldAlert className="h-4 w-4" /> Peringatan dini</div>
+              <h3 className="mt-3 font-bold leading-snug">{item.title}</h3>
+              <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-muted-foreground">{item.description}</p>
+              <p className="mt-4 text-[11px] text-muted-foreground">{new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short" }).format(new Date(item.publishedAt))}</p>
+            </a>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -171,9 +314,9 @@ function Header() {
           <p className="text-xs text-muted-foreground">Prediksi cuaca resmi BMKG</p>
         </div>
       </div>
-      <span className="hidden rounded-full border border-border px-3 py-1 text-xs text-muted-foreground sm:block">
-        PWA · bisa dipasang di HP
-      </span>
+      <div className="hidden items-center gap-2 rounded-full border border-border bg-card/50 px-3 py-1.5 text-xs text-muted-foreground sm:flex">
+        <span className="h-2 w-2 animate-pulse rounded-full bg-fire-low" /> Data langsung BMKG
+      </div>
     </header>
   );
 }
@@ -220,9 +363,10 @@ function LocationPicker({
         <span className="text-xs text-muted-foreground">· aktif: {location.label}</span>
       </div>
 
-      <button
+      <Button
+        variant="outline"
         onClick={() => onChange(SMK_PGRI2)}
-        className={`mt-3 flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${
+        className={`mt-3 h-auto w-full justify-start whitespace-normal rounded-xl px-4 py-3 text-left ${
           location.adm4 === SMK_PGRI2.adm4
             ? "border-primary bg-accent"
             : "border-border bg-card hover:border-primary/60"
@@ -235,7 +379,7 @@ function LocationPicker({
             Lokasi khusus sekolah — Kauman, Kec. Ponorogo, Kab. Ponorogo
           </p>
         </div>
-      </button>
+      </Button>
 
       <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
         <select

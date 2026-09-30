@@ -14,7 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      weather_push_subscriptions: {
+        Row: {
+          adm4: string
+          created_at: string
+          fair_weather_updates: boolean
+          fcm_token: string
+          id: string
+          installation_id: string
+          last_alert_key: string | null
+          last_alerted_at: string | null
+          location_label: string
+          rain_alerts: boolean
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          adm4: string
+          created_at?: string
+          fair_weather_updates?: boolean
+          fcm_token: string
+          id?: string
+          installation_id: string
+          last_alert_key?: string | null
+          last_alerted_at?: string | null
+          location_label: string
+          rain_alerts?: boolean
+          timezone?: string
+          updated_at?: string
+        }
+        Update: {
+          adm4?: string
+          created_at?: string
+          fair_weather_updates?: boolean
+          fcm_token?: string
+          id?: string
+          installation_id?: string
+          last_alert_key?: string | null
+          last_alerted_at?: string | null
+          location_label?: string
+          rain_alerts?: boolean
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
