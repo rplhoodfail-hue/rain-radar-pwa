@@ -1,0 +1,32 @@
+{
+  "name": "CuacaKu — Prediksi Cuaca BMKG",
+  "short_name": "CuacaKu",
+  "description": "Aplikasi prediksi dan pengecekan cuaca berbasis data BMKG: suhu, kelembapan, curah hujan, indeks kebakaran, dan arah angin.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b1226",
+  "theme_color": "#0b1226",
+  "lang": "id",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
