@@ -47,6 +47,12 @@ export async function enablePush(location: SelectedLocation): Promise<PushStatus
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Jakarta",
     },
   });
+  const { onMessage } = await import("firebase/messaging");
+  onMessage(getMessaging(app), (payload) => {
+    playAlertSound();
+    const n = payload.notification;
+    if (n?.title) registration.showNotification(n.title, { body: n.body, icon: "/icon-192.png", requireInteraction: true });
+  });
   return "registered";
 }
 
