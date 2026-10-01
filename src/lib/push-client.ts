@@ -47,6 +47,12 @@ export async function enablePush(location: SelectedLocation): Promise<PushStatus
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Jakarta",
     },
   });
+  const { onMessage } = await import("firebase/messaging");
+  onMessage(getMessaging(app), (payload) => {
+    playAlertSound();
+    const n = payload.notification;
+    if (n?.title) registration.showNotification(n.title, { body: n.body ?? "", icon: "/icon-192.png", requireInteraction: true });
+  });
   return "registered";
 }
 
@@ -61,4 +67,17 @@ export async function disablePush(): Promise<void> {
     const app = getApps()[0];
     if (app) await deleteToken(getMessaging(app));
   }
+}
+
+/** Bunyi peringatan singkat saat notifikasi masuk ketika aplikasi sedang dibuka. */
+export function playAlertSound() {
+  try {
+    const ctx = new AudioContext();
+    [0, 0.35, 0.7].forEach((t) => {
+      const o = ctx.createOscillator(); const g = ctx.createGain();
+      o.frequency.value = 880; o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(0.3, ctx.currentTime + t); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.3);
+      o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.3);
+    });
+  } catch { /* audio tidak didukung */ }
 }
